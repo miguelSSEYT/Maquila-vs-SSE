@@ -21,6 +21,7 @@ def procesar_fifo(df_minuta, df_ci):
         cantidad = int(row["Delivery Quantity"])
         tracking = row["Tracking Number"]
         documento = row["Document"]
+        material = row["Material"] if "Material" in row else ""
 
         posibles = df_minuta[df_minuta["Descripción"] == descripcion]
 
@@ -28,6 +29,7 @@ def procesar_fifo(df_minuta, df_ci):
             resultado.append({
                 "Tracking Number": tracking,
                 "Document": documento,
+                "Material": material,
                 "Descripción": descripcion,
                 "Cantidad Usada": cantidad,
                 "Delivery": "",
@@ -45,6 +47,7 @@ def procesar_fifo(df_minuta, df_ci):
             resultado.append({
                 "Tracking Number": tracking,
                 "Document": documento,
+                "Material": material,
                 "Descripción": descripcion,
                 "Cantidad Usada": cantidad,
                 "Delivery": selected["Delivery"],
@@ -67,6 +70,7 @@ def procesar_fifo(df_minuta, df_ci):
                 resultado.append({
                     "Tracking Number": tracking,
                     "Document": documento,
+                    "Material": material,
                     "Descripción": descripcion,
                     "Cantidad Usada": usar,
                     "Delivery": m_row["Delivery"],
@@ -83,6 +87,7 @@ def procesar_fifo(df_minuta, df_ci):
                 resultado.append({
                     "Tracking Number": tracking,
                     "Document": documento,
+                    "Material": material,
                     "Descripción": descripcion,
                     "Cantidad Usada": restante,
                     "Delivery": "",
