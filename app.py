@@ -14,6 +14,7 @@ def procesar_fifo(df_minuta, df_ci):
     df_minuta["Saldo Pdte"] = pd.to_numeric(df_minuta["Saldo Pdte"], errors="coerce").fillna(0).astype(int)
 
     resultado = []
+    uso_detallado = []
 
     for idx, row in df_ci.iterrows():
         descripcion = row["DES NO CUSTOM"]
@@ -49,6 +50,7 @@ def procesar_fifo(df_minuta, df_ci):
                 "Delivery": selected["Delivery"],
                 "Precio Unitario": selected["Precio Unitario"]
             })
+            uso_detallado.append({"Delivery": selected["Delivery"], "Cantidad": cantidad})
         else:
             restante = cantidad
             for i, m_row in posibles.iterrows():
@@ -72,6 +74,8 @@ def procesar_fifo(df_minuta, df_ci):
                     "Comentario": "Fraccionado" if cantidad > usar else ""
                 })
 
+                uso_detallado.append({"Delivery": m_row["Delivery"], "Cantidad": usar})
+
                 if restante == 0:
                     break
 
@@ -86,7 +90,9 @@ def procesar_fifo(df_minuta, df_ci):
                     "Comentario": "Vaso de maquila (incompleto)"
                 })
 
-    return pd.DataFrame(resultado)
+    df_resultado = pd.DataFrame(resultado)
+    df_minuta_actualizada = df_minuta.copy()
+    return df_resultado, df_minuta_actualizada
 
 if excel_file:
     xls = pd.ExcelFile(excel_file)
@@ -95,8 +101,9 @@ if excel_file:
         df_ci = pd.read_excel(xls, sheet_name="CI")
 
         st.success("Archivo cargado correctamente. Procesando...")
-        resultado = procesar_fifo(df_minuta, df_ci)
+        resultado, minuta_actualizada = procesar_fifo(df_minuta, df_ci)
 
+        st.subheader("Resultado del Análisis FIFO")
         st.dataframe(resultado)
 
         # Descarga del resultado
@@ -106,6 +113,19 @@ if excel_file:
             label="📥 Descargar Resultado en Excel",
             data=output.getvalue(),
             file_name="Resultado_FIFO.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        # Mostrar minuta actualizada
+        st.subheader("Minuta Actualizada")
+        st.dataframe(minuta_actualizada)
+
+        output_minuta = BytesIO()
+        minuta_actualizada.to_excel(output_minuta, index=False)
+        st.download_button(
+            label="📥 Descargar Minuta Actualizada",
+            data=output_minuta.getvalue(),
+            file_name="Minuta_Actualizada.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     else:
