@@ -97,13 +97,7 @@ def procesar_fifo(df_minuta, df_ci):
 
     df_resultado = pd.DataFrame(resultado)
     df_minuta_actualizada = df_minuta.copy()
-
-    # Combinar la hoja CI con info de resultado para hoja enriquecida
-    df_ci_enriquecido = df_ci.copy()
-    df_resultado_simple = df_resultado.drop(columns=["Comentario"], errors="ignore")
-    df_ci_enriquecido = df_ci_enriquecido.merge(df_resultado_simple, on=["Tracking Number", "Document", "Material", "Descripción"], how="left")
-
-    return df_resultado, df_minuta_actualizada, df_ci, df_ci_enriquecido
+    return df_resultado, df_minuta_actualizada
 
 if excel_file:
     xls = pd.ExcelFile(excel_file)
@@ -112,21 +106,18 @@ if excel_file:
         df_ci = pd.read_excel(xls, sheet_name="CI")
 
         st.success("Archivo cargado correctamente. Procesando...")
-        resultado, minuta_actualizada, hoja_ci_original, hoja_ci_enriquecida = procesar_fifo(df_minuta, df_ci)
+        resultado, minuta_actualizada = procesar_fifo(df_minuta, df_ci)
 
         st.subheader("Resultado del Análisis FIFO")
         st.dataframe(resultado)
 
-        # Crear archivo Excel con tres hojas: resultado, CI original, y CI enriquecida
+        # Descarga del resultado
         output = BytesIO()
-        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-            resultado.to_excel(writer, sheet_name="Resultado_FIFO", index=False)
-            hoja_ci_original.to_excel(writer, sheet_name="CI_Original", index=False)
-            hoja_ci_enriquecida.to_excel(writer, sheet_name="CI_Enriquecida", index=False)
+        resultado.to_excel(output, index=False)
         st.download_button(
-            label="📥 Descargar Resultado con CI",
+            label="📥 Descargar Resultado en Excel",
             data=output.getvalue(),
-            file_name="Resultado_FIFO_con_CI.xlsx",
+            file_name="Resultado_FIFO.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
