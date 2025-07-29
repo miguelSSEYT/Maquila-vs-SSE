@@ -9,8 +9,11 @@ st.sidebar.header("Subir archivo Excel")
 excel_file = st.sidebar.file_uploader("Carga tu archivo Excel con hojas 'Minuta' y 'CI'", type=["xlsx"])
 
 def procesar_fifo(df_minuta, df_ci):
+    # Convertir fecha y ordenar por Descripción y Fecha
     df_minuta["Fecha"] = pd.to_datetime(df_minuta["Fecha"], errors='coerce')
     df_minuta = df_minuta.sort_values(by=["Descripción", "Fecha"]).reset_index(drop=True)
+
+    # Asegurar que Saldo Pdte sea numérico
     df_minuta["Saldo Pdte"] = pd.to_numeric(df_minuta["Saldo Pdte"], errors="coerce").fillna(0).astype(int)
 
     resultado = []
@@ -23,8 +26,10 @@ def procesar_fifo(df_minuta, df_ci):
         documento = row["Document"]
         material = row["Material"] if "Material" in row else ""
 
+        # Buscar en Minuta
         posibles = df_minuta[df_minuta["Descripción"] == descripcion]
 
+        # Si no existe match → vaso de maquila
         if posibles.empty:
             resultado.append({
                 "Tracking Number": tracking,
@@ -33,11 +38,14 @@ def procesar_fifo(df_minuta, df_ci):
                 "Descripción": descripcion,
                 "Cantidad Usada": cantidad,
                 "Delivery": "",
+                "Fraccion": "",
+                "Desc Fraccion": "",
                 "Precio Unitario": "",
                 "Comentario": "Vaso de maquila"
             })
             continue
 
+        # Match completo (saldo suficiente)
         match_completo = posibles[posibles["Saldo Pdte"] >= cantidad]
         if not match_completo.empty:
             selected = match_completo.iloc[0]
@@ -51,10 +59,14 @@ def procesar_fifo(df_minuta, df_ci):
                 "Descripción": descripcion,
                 "Cantidad Usada": cantidad,
                 "Delivery": selected["Delivery"],
+                "Fraccion": selected["Fraccion"],
+                "Desc Fraccion": selected["Desc Fraccion"],
                 "Precio Unitario": selected["Precio Unitario"]
             })
             uso_detallado.append({"Delivery": selected["Delivery"], "Cantidad": cantidad})
+
         else:
+            # Fraccionar si no hay saldo completo
             restante = cantidad
             for i, m_row in posibles.iterrows():
                 saldo = df_minuta.at[i, "Saldo Pdte"]
@@ -74,6 +86,8 @@ def procesar_fifo(df_minuta, df_ci):
                     "Descripción": descripcion,
                     "Cantidad Usada": usar,
                     "Delivery": m_row["Delivery"],
+                    "Fraccion": m_row["Fraccion"],
+                    "Desc Fraccion": m_row["Desc Fraccion"],
                     "Precio Unitario": m_row["Precio Unitario"],
                     "Comentario": "Fraccionado" if cantidad > usar else ""
                 })
@@ -83,6 +97,7 @@ def procesar_fifo(df_minuta, df_ci):
                 if restante == 0:
                     break
 
+            # Si aún sobra cantidad → vaso de maquila incompleto
             if restante > 0:
                 resultado.append({
                     "Tracking Number": tracking,
@@ -91,6 +106,8 @@ def procesar_fifo(df_minuta, df_ci):
                     "Descripción": descripcion,
                     "Cantidad Usada": restante,
                     "Delivery": "",
+                    "Fraccion": "",
+                    "Desc Fraccion": "",
                     "Precio Unitario": "",
                     "Comentario": "Vaso de maquila (incompleto)"
                 })
@@ -99,6 +116,7 @@ def procesar_fifo(df_minuta, df_ci):
     df_minuta_actualizada = df_minuta.copy()
     return df_resultado, df_minuta_actualizada
 
+# --- Streamlit principal ---
 if excel_file:
     xls = pd.ExcelFile(excel_file)
     if "Minuta" in xls.sheet_names and "CI" in xls.sheet_names:
@@ -111,7 +129,7 @@ if excel_file:
         st.subheader("Resultado del Análisis FIFO")
         st.dataframe(resultado)
 
-        # Descarga del resultado
+        # Descargar resultado
         output = BytesIO()
         resultado.to_excel(output, index=False)
         st.download_button(
